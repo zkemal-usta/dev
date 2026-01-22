@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobitek Vision - Teknik Dokümantasyon</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 50px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 50px;
+        }
+        h1:first-child { margin-top: 0; }
+        h2 {
+            color: #34495e;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 25px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        ul {
+            margin-bottom: 15px;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        .math-block {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+            border-left: 4px solid #3498db;
+            overflow-x: auto;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+        .note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div style="text-align: center; margin-bottom: 60px;">
+        <h1 style="border:none; font-size: 2.5em;">Lobitek Vision Teknik Raporu</h1>
+        <p style="color: #666; font-size: 1.1em;">3 Kameralı Stereo Derinlik, Engel Algılama ve Rota Planlama Matematiği</p>
+        <hr>
+    </div>
+
+    <!-- BÖLÜM 1 -->
+    <h1>1. 3 Kameralı Stereo Vizyon ve Derinlik Matematiği</h1>
+
+    <h2>Giriş</h2>
+    <p>Bu bölüm, 3 kameralı sistem (Trifocal Tensor veya Multi-Baseline Stereo) kullanarak derinlik kestirimi, kamera kalibrasyonu ve üçgenleme (triangulation) prensiplerini detaylandırır.</p>
+
+    <h2>Pinhole Kamera Modeli</h2>
+    <p>Her bir kamera için temel izdüşüm matrisi aşağıdaki gibi tanımlanır. 3B uzaydaki bir nokta \(P(X, Y, Z)\) ve görüntü düzlemindeki karşılığı \(p(u, v)\) olsun.</p>
+
+    <div class="math-block">
+        $$ s \begin{bmatrix} u \\ v \\ 1 \end{bmatrix} = K [R | t] \begin{bmatrix} X \\ Y \\ Z \\ 1 \end{bmatrix} $$
+    </div>
+
+    <p>Burada:</p>
+    <ul>
+        <li>\(s\): Ölçek faktörü (derinlik ile orantılı).</li>
+        <li>\(K\): İç (Intrinsic) kamera parametre matrisi.</li>
+        <li>\(R\): Rotasyon matrisi (\(3 \times 3\)).</li>
+        <li>\(t\): Öteleme (Translation) vektörü.</li>
+    </ul>
+
+    <h3>İç Parametre Matrisi (\(K\))</h3>
+    <div class="math-block">
+        $$ K = \begin{bmatrix} f_x & 0 & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \end{bmatrix} $$
+    </div>
+    <ul>
+        <li>\(f_x, f_y\): Odak uzaklıkları (piksel cinsinden).</li>
+        <li>\(c_x, c_y\): Görüntü merkezi (ana nokta).</li>
+    </ul>
+
+    <h2>Epipolar Geometri ve Disparity</h2>
+    <p>İki kamera arasındaki temel ilişki <em>disparity</em> (uyumsuzluk) kavramına dayanır. Sol kamera ile sağ kamera arasındaki yatay mesafe (Baseline) \(B\) olsun.
+    Bir \(P\) noktasının sol görüntüdeki x koordinatı \(x_L\) ve sağ görüntüdeki x koordinatı \(x_R\) ise, disparity \(d\):</p>
+
+    <div class="math-block">
+        $$ d = x_L - x_R $$
+    </div>
+
+    <h3>Derinlik (\(Z\)) Hesabı</h3>
+    <p>Benzer üçgenler teoremi kullanılarak derinlik \(Z\) şu şekilde hesaplanır:</p>
+
+    <div class="math-block">
+        $$ \frac{Z}{f} = \frac{B}{d} \implies Z = \frac{f \cdot B}{d} $$
+    </div>
+
+    <div class="note">
+        <strong>Önemli Not:</strong> Disparity \(d\), derinlik \(Z\) ile ters orantılıdır. \(d \to 0\) iken \(Z \to \infty\). Bu, uzak nesnelerde derinlik hassasiyetinin azaldığı anlamına gelir.
+    </div>
+
+    <h2>3 Kameralı (Multi-View) Sistem Avantajı</h2>
+    <p>İki kameralı sistemlerde yatay kenarların eşleştirilmesi zordur. 3. bir kamera (genellikle üstte) dikey disparity bilgisi de sağlar.
+    Kameralar \(C_1\) (Sol), \(C_2\) (Sağ), \(C_3\) (Üst) olsun.
+    Elde edilen iki derinlik tahmini (\(Z_h\) ve \(Z_v\)) birleştirilerek hata minimize edilir:</p>
+
+    <div class="math-block">
+        $$ Z_{final} = \frac{w_h \cdot Z_h + w_v \cdot Z_v}{w_h + w_v} $$
+    </div>
+
+    <h2>Hata Analizi</h2>
+    <p>Derinlik ölçümündeki hata \(\Delta Z\), disparity hatasına \(\Delta d\) bağlıdır:</p>
+
+    <div class="math-block">
+        $$ \left| \Delta Z \right| = \frac{Z^2}{f \cdot B} \Delta d $$
+    </div>
+    <p>Hata, derinliğin karesi (\(Z^2\)) ile artar.</p>
+
+    <!-- BÖLÜM 2 -->
+    <h1>2. Engel Algılama ve Haritalama</h1>
+
+    <h2>Nokta Bulutu (Point Cloud) Dönüşümü</h2>
+    <p>Stereo kameradan elde edilen derinlik haritası, robotun lokal koordinat sisteminde 3B nokta bulutuna dönüştürülür.
+    Bir piksel \((u, v)\) ve derinliği \(Z\) için 3B koordinatlar:</p>
+
+    <div class="math-block">
+        $$ X = \frac{(u - c_x) \cdot Z}{f_x}, \quad Y = \frac{(v - c_y) \cdot Z}{f_y}, \quad Z = Z $$
+    </div>
+
+    <h2>Zemin Düzlemi Filtreleme</h2>
+    <p>Engelleri tespit edebilmek için zeminin (yolun) ayırt edilmesi gerekir. Basit yükseklik filtresi:</p>
+
+    <div class="math-block">
+        $$ Engel(P) = \begin{cases} 
+        1 (EVET), & \text{eğer } P_y > h_{eşik} \\
+        0 (HAYIR), & \text{eğer } P_y \leq h_{eşik}
+        \end{cases} $$
+    </div>
+
+    <h2>Doluluk Haritası (Occupancy Grid)</h2>
+    <p>3B uzay, 2B kuş bakışı bir ızgaraya indirgenir. Olasılık Güncelleme Kuralı (Log-Odds Formülasyonu):</p>
+
+    <div class="math-block">
+        $$ l_{t,i} = l_{t-1,i} + \text{inverse\_sensor\_model}(z_t) - l_0 $$
+    </div> 
+    
+    <h2>Güvenlik Çemberi ve Şişirme</h2>
+    <p>Robotun fiziksel boyutlarını hesaba katmak için engeller haritada "şişirilir". Maliyet fonksiyonu:</p>
+
+    <div class="math-block">
+        $$ C(dist) = \begin{cases} 
+        \text{LETHAL}, & dist \leq R_{robot} \\
+        \exp(-\alpha \cdot (dist - R_{robot})), & R_{robot} < dist \leq R_{inflation} \\
+        0, & dist > R_{inflation}
+        \end{cases} $$
+    </div>
+
+    <!-- BÖLÜM 3 -->
+    <h1>3. Engelden Kaçma Algoritmaları</h1>
+
+    <h2>Yapay Potansiyel Alanlar (APF)</h2>
+    <p>Robot, hedefe doğru çeken ve engellerden iten sanal kuvvetlerin etkisi altındaymış gibi hareket eder.</p>
+
+    <h3>Toplam Potansiyel</h3>
+    <div class="math-block">
+        $$ U_{total}(q) = U_{att}(q) + U_{rep}(q) $$
+    </div>
+
+    <h3>Çekici Potansiyel (Attractive)</h3>
+    <div class="math-block">
+        $$ F_{att} = -\nabla U_{att}(q) = -k_{att} \cdot (q - q_{goal}) $$
+    </div>
+
+    <h3>İtici Potansiyel (Repulsive)</h3>
+    <div class="math-block">
+        $$ U_{rep}(q) = \begin{cases} 
+        \frac{1}{2} k_{rep} \left( \frac{1}{d(q, q_{obs})} - \frac{1}{d_0} \right)^2, & \text{eğer } d \leq d_0 \\
+        0, & \text{eğer } d > d_0 
+        \end{cases} $$
+    </div>
+
+    <h2>Dinamik Pencere Yaklaşımı (DWA)</h2>
+    <p>Robotun kinematik sınırlarını ve hızını hesaba katarak en iyi hız çiftini \((v, \omega)\) seçer.
+    Amaç fonksiyonu:</p>
+
+    <div class="math-block">
+        $$ G(v, \omega) = \alpha \cdot \text{heading}(v, \omega) + \beta \cdot \text{dist}(v, \omega) + \gamma \cdot \text{vel}(v, \omega) $$
+    </div>
+    <ul>
+        <li><strong>heading:</strong> Hedefe yönelim başarısı.</li>
+        <li><strong>dist:</strong> Engele olan mesafe.</li>
+        <li><strong>vel:</strong> Robotun hızı.</li>
+    </ul>
+
+    <!-- BÖLÜM 4 -->
+    <h1>4. Otomatik Rota Planlama</h1>
+
+    <h2>A* (A-Star) Algoritması</h2>
+    <p>Izgara tabanlı haritalarda en kısa yolu bulmak için kullanılır. Maliyet fonksiyonu:</p>
+
+    <div class="math-block">
+        $$ f(n) = g(n) + h(n) $$
+    </div>
+
+    <h3>Heuristic (Sezgisel) Fonksiyonlar</h3>
+    <p>Öklid Mesafesi (Euclidean):</p>
+    <div class="math-block">
+        $$ h(n) = \sqrt{(x_n - x_{hedef})^2 + (y_n - y_{hedef})^2} $$
+    </div>
+
+    <h2>RRT (Rapidly-exploring Random Tree)</h2>
+    <p>Yüksek boyutlu uzaylarda rastgele örnekleme ile yol bulur.
+    Ağaç \(T\), rastgele seçilen \(q_{rand}\) noktasına doğru genişletilir.</p>
+
+    <h2>Rota Düzgünleştirme</h2>
+    <p>Keskin dönüşleri yumuşatmak için Bezier eğrileri kullanılır:</p>
+    <div class="math-block">
+        $$ B(t) = (1-t)^2 P_0 + 2(1-t)t P_1 + t^2 P_2, \quad t \in [0, 1] $$
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,177 @@
+LOBITEK VISION - TEKNİK PLANLAMA VE MATEMATİKSEL MODELLEME
+(Bu metin Apple Notes için özel UNICODE sembolleri ile hazırlanmıştır. Kopyala/Yapıştır yapıldığında semboller korunur.)
+
+════════════════════════════════════════════════════════════════════
+BÖLÜM 1: 3 KAMERALI STEREO VİZYON VE DERİNLİK MATEMATİĞİ
+════════════════════════════════════════════════════════════════════
+
+1.1. PINHOLE (İĞNE DELİĞİ) KAMERA MODELİ
+────────────────────────────────────────────────────────────────────
+Her bir kamera için 3B dünyadan 2B görüntü düzlemine izdüşüm şu matris denklemi ile ifade edilir:
+
+    s · p = K · [R | t] · P
+
+Burada vektörler ve matrisler şöyledir:
+
+        ⎡ u ⎤                       ⎡ X ⎤
+    p = ⎢ v ⎥    (Piksel)       P = ⎢ Y ⎥    (Dünya Noktası)
+        ⎣ 1 ⎦                       ⎢ Z ⎥
+                                    ⎣ 1 ⎦
+
+    s : Ölçek faktörü (Scale factor)
+    K : İç Parametre Matrisi (Intrinsic Matrix)
+    R : Rotasyon (3×3)
+    t : Öteleme (3×1)
+
+K Matrisi (İç Parametreler) şu yapıdadır:
+
+        ⎡ fₓ   0   cₓ ⎤
+    K = ⎢ 0    fᵧ  cᵧ ⎥
+        ⎣ 0    0   1  ⎦
+
+    • fₓ, fᵧ : Odak uzaklıkları (focal length)
+    • cₓ, cᵧ : Görüntü merkezi (principal point)
+
+
+1.2. EPİPOLAR GEOMETRİ VE DERİNLİK (Z) HESABI
+────────────────────────────────────────────────────────────────────
+İki kamera arasındaki yatay mesafe "Baseline" (B) olarak adlandırılır.
+Stereo derinlik algılamanın temeli "Disparity" (d) yani uyumsuzluktur.
+
+    d = xʟ - xʀ
+
+    • xʟ : Sol görüntüdeki x koordinatı
+    • xʀ : Sağ görüntüdeki x koordinatı
+
+Derinlik (Z), benzer üçgenler kuralı ile hesaplanır:
+
+        f · B
+    Z = ─────
+          d
+
+Hata Analizi (Türev Yöntemi):
+Derinlikteki belirsizlik (ΔZ), disparity hatasına (Δd) bağlı olarak karesel artar:
+
+           ∂Z          Z²
+    ΔZ = ⃒ ──── ⃒ · Δd = ───── · Δd
+           ∂d         f · B
+
+    ⚠ SONUÇ: Derinlik (Z) arttıkça hata Z² ile büyür. Uzak nesnelerde hassasiyet düşer.
+
+
+1.3. 3 KAMERALI SİSTEM (TRIFOCAL)
+────────────────────────────────────────────────────────────────────
+Üçüncü kamera dikey eksende (L-şeklinde dizilim) kullanıldığında, hem yatay (h) hem dikey (v) disparity elde edilir.
+
+    Zₕ = (f · Bₕ) / dₕ
+    Zᵥ = (f · Bᵥ) / dᵥ
+
+Bu iki ölçüm Kalman Filtresi veya Ağırlıklı Ortalama ile birleştirilir:
+
+              wₕ·Zₕ + wᵥ·Zᵥ
+    Z_final = ─────────────
+                wₕ + wᵥ
+
+    • w : Güven katsayısı (varyansın tersi 1/σ²)
+
+
+════════════════════════════════════════════════════════════════════
+BÖLÜM 2: ENGEL ALGILAMA VE HARİTALAMA
+════════════════════════════════════════════════════════════════════
+
+2.1. NOKTA BULUTU DÖNÜŞÜMÜ (REPROJECTION)
+────────────────────────────────────────────────────────────────────
+Derinlik haritasından (u, v, Z) → 3B Uzaya (X, Y, Z) dönüşüm:
+
+        (u - cₓ) · Z
+    X = ────────────
+             fₓ
+
+        (v - cᵧ) · Z
+    Y = ────────────
+             fᵧ
+
+    Z = Z
+
+
+2.2. DOLULUK HARİTASI (OCCUPANCY GRID) GÜNCELLEMESİ
+────────────────────────────────────────────────────────────────────
+Bayes Filtresi Log-Odds formülasyonu kullanılır.
+Bir hücrenin (mᵢ) dolu olma olasılığı P(mᵢ):
+
+    L(mᵢ|z₁:ₜ) = L(mᵢ|z₁:ₜ₋₁) + L_inverse(mᵢ|zₜ) - L₀
+
+Burada Log-Odds L(x):
+             P(x)
+    L(x) = log ─────
+            1 - P(x)
+
+
+2.3. MALİYET HARİTASI (COSTMAP) VE ŞİŞİRME
+────────────────────────────────────────────────────────────────────
+Engel etrafındaki risk alanı (Cost) üssel olarak azalır:
+
+    C(r) = exp(-α · (r - R_robot))
+
+    • r : Engele olan mesafe
+    • α : Azalma katsayısı (Decay factor)
+    • R_robot : Robot yarıçapı
+
+
+════════════════════════════════════════════════════════════════════
+BÖLÜM 3: ENGELDEN KAÇMA ALGORİTMALARI
+════════════════════════════════════════════════════════════════════
+
+3.1. YAPAY POTANSİYEL ALANLAR (APF)
+────────────────────────────────────────────────────────────────────
+Robotun hareketi, potansiyel alanın gradyanı (türevi) ile belirlenir.
+
+    U_toplam(q) = U_çekici(q) + U_itici(q)
+
+Çekici Kuvvet (Hedefe):
+    F_att = -∇U_att = -k_att · (q - q_hedef)
+
+İtici Kuvvet (Engelden):
+    F_rep = k_rep · (1/d - 1/d₀) · (1/d²) · ∇d
+
+    • q  : Robot konumu (x, y)
+    • d  : Engele mesafe
+    • d₀ : Etki mesafesi limiti
+
+
+3.2. DİNAMİK PENCERE YAKLAŞIMI (DWA)
+────────────────────────────────────────────────────────────────────
+Amaç fonksiyonu G(v, ω) maksimize edilir:
+
+    G(v, ω) = α·heading(v,ω) + β·dist(v,ω) + γ·vel(v,ω)
+
+    • Heading : Hedefe yönelim açısı başarısı
+    • Dist    : En yakın engele çarpma mesafesi
+    • Vel     : Robotun ilerleme hızı
+
+
+════════════════════════════════════════════════════════════════════
+BÖLÜM 4: OTOMATİK ROTA PLANLAMA
+════════════════════════════════════════════════════════════════════
+
+4.1. A* (A-STAR) ALGORİTMASI
+────────────────────────────────────────────────────────────────────
+Düğüm maliyet fonksiyonu f(n):
+
+    f(n) = g(n) + h(n)
+
+Heuristic (Sezgisel) Fonksiyon h(n) [Öklid]:
+
+    h(n) = √((xₙ - x_hedef)² + (yₙ - y_hedef)²)
+
+    • g(n) : Başlangıçtan gelen maliyet
+    • h(n) : Hedefe tahmini kalan maliyet
+
+
+4.2. ROTA DÜZGÜNLEŞTİRME (BEZIER EĞRİLERİ)
+────────────────────────────────────────────────────────────────────
+Keskin köşeleri yumuşatmak için kuadratik Bezier eğrisi:
+
+    B(t) = (1-t)²·P₀ + 2(1-t)t·P₁ + t²·P₂
+
+    t ∈ [0, 1] parametresi değiştikçe P₀'dan P₂'ye P₁ kontrol noktasını teğet geçerek eğri çizilir.
